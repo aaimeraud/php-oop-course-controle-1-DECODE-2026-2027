@@ -2,11 +2,13 @@
 
 namespace App\Controllers;
 
-use App\Http\Request;
-use App\Http\Response;
+use Lib\Http\{Request, Response};
+use Lib\Controllers\AbstractController;
 
-class HomeController extends AbstractController {
-    public function process(Request $request): Response {
+class HomeController extends AbstractController
+{
+    public function process(Request $request): Response
+    {
         $response = new Response();
         $response->statusCode = 200;
         $response->content = 'success';
@@ -14,6 +16,3 @@ class HomeController extends AbstractController {
         return $response;
     }
 }
-
-?>
-
