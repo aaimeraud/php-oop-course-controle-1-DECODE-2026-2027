@@ -20,7 +20,7 @@ class Router {
         foreach($routes as $route) {
             $this->validateConfig($route);
             
-            if($this->checkUri($request, $route('uri')) === false) {
+            if($this->checkUri($request, $route['uri']) === false) {
                 continue;
             }
             $uriFoundFlag = true;
