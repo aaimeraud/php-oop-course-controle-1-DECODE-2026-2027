@@ -20,4 +20,9 @@ class ContactValidator
     {
         return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
     }
+
+    public function isString(mixed $value): bool
+    {
+        return is_string($value);
+    }
 }

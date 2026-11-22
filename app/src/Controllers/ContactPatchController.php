@@ -49,7 +49,7 @@ class ContactPatchController extends AbstractController
         } catch (\JsonException $e) {
             $response = new Response();
             $response->sendResponse(400, json_encode(["error" => "Invalid JSON format: Check your request for typos"]));
-
+            
             return $response;
         } catch (\UnexpectedValueException $e) {
             $response = new Response();
@@ -71,6 +71,21 @@ class ContactPatchController extends AbstractController
         if ($json === []) {
             $response = new Response();
             $response->sendResponse(400, json_encode(["error" => "Nothing to update: send at least one of email, subject or message"]));
+
+            return $response;
+        }
+
+
+        if (array_key_exists("subject", $json) && $validator->isString($json["subject"]) === false) {
+            $response = new Response();
+            $response->sendResponse(400, json_encode(["error" => "\"subject\" is not a string"]));
+
+            return $response;
+        }
+
+        if (array_key_exists("message", $json) && $validator->isString($json["message"]) === false) {
+            $response = new Response();
+            $response->sendResponse(400, json_encode(["error" => "\"message\" is not a string"]));
 
             return $response;
         }
