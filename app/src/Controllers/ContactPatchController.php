@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Services\ContactStorage;
 use Lib\Http\{Request, Response};
 use Lib\Controllers\AbstractController;
 
@@ -13,16 +14,16 @@ class ContactPatchController extends AbstractController
 
         $filename = rawurldecode($request->getParams()['filename']);
 
-        if (str_contains($filename, "..") || str_contains($filename, "/") || str_contains($filename, "\\")) {
+        $storage = new ContactStorage();
+
+        if ($storage->isValidName($filename) === false) {
             $response = new Response();
             $response->sendResponse(400, json_encode(["error" => "Invalid filename"]));
 
             return $response;
         }
 
-        $path = __DIR__ . "/../../var/contacts/$filename.json";
-
-        if (file_exists($path) === false) {
+        if ($storage->exists($filename) === false) {
             $response = new Response();
             $response->sendResponse(404, json_encode(["error" => "File not found"]));
 
@@ -86,20 +87,29 @@ class ContactPatchController extends AbstractController
         }
 
         try {
-            $contact = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
-
-            $contact = array_merge($contact, $json);
-            $contact["dateOfLastUpdate"] = time();
-
-            if (file_put_contents($path, json_encode($contact, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), LOCK_EX) === false) {
-                $response = new Response();
-                $response->sendResponse(500, json_encode(["error" => "could not write file"]));
-
-                return $response;
-            }
+            $contact = $storage->read($filename);
         } catch (\JsonException $e) {
             $response = new Response();
-            $response->sendResponse(500, json_encode(["error" => "Error reading or writing JSON file"]));
+            $response->sendResponse(500, json_encode(["error" => "Error reading JSON file"]));
+
+            return $response;
+        }
+
+        $contact = array_merge($contact, $json);
+        $contact["dateOfLastUpdate"] = time();
+
+        try {
+            $saved = $storage->save($filename, $contact);
+        } catch (\JsonException $e) {
+            $response = new Response();
+            $response->sendResponse(500, json_encode(["error" => "Error writing JSON file"]));
+
+            return $response;
+        }
+
+        if ($saved === false) {
+            $response = new Response();
+            $response->sendResponse(500, json_encode(["error" => "could not write file"]));
 
             return $response;
         }

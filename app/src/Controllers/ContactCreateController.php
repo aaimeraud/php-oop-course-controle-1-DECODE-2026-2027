@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 
+use App\Services\ContactStorage;
 use Lib\Http\{Request, Response};
 use Lib\Controllers\AbstractController;
 
@@ -53,23 +54,18 @@ class ContactCreateController extends AbstractController
             try {
                 $timestamp = time();
 
-                $filename = date("Y-m-d_H-i-s") . "_" . $json["email"] . ".json";
-                $path = __DIR__ . "/../../var/contacts/" . $filename;
+                $name = date("Y-m-d_H-i-s") . "_" . $json["email"];
 
                 $data = array_merge($json, ["dateOfCreation" => $timestamp, 'dateOfLastUpdate' => $timestamp]);
 
-                if (
-                    file_put_contents(
-                        $path,
-                        json_encode($data, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR),
-                        LOCK_EX
-                    ) === false
-                ) {
+                $storage = new ContactStorage();
+
+                if ($storage->save($name, $data) === false) {
                     $response->sendResponse(500, json_encode(["error" => "could not write file"]));
                     return $response;
                 }
 
-                $response->sendResponse(201, json_encode(["file" => $filename]));
+                $response->sendResponse(201, json_encode(["file" => $name . ".json"]));
                 return $response;
             } catch (\JsonException $e) {
                 $response->sendResponse(400, json_encode(["error" => "Invalid JSON"]));
