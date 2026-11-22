@@ -31,6 +31,20 @@ class ContactStorage
         return file_put_contents($this->pathFor($name), $content, LOCK_EX) !== false;
     }
 
+    public function listNames(): array
+    {
+        $files = array_diff(scandir(self::DIRECTORY), [".", "..", ".DS_Store"]);
+
+        $names = [];
+        foreach ($files as $file) {
+            if (str_ends_with(strtolower($file), ".json")) {
+                $names[] = substr($file, 0, -strlen(".json"));
+            }
+        }
+
+        return $names;
+    }
+
     private function pathFor(string $name): string
     {
         return self::DIRECTORY . $name . ".json";

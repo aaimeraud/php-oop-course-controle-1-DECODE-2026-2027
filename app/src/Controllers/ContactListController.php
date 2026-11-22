@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Services\ContactStorage;
 use Lib\Http\{Request, Response};
 use Lib\Controllers\AbstractController;
 
@@ -11,19 +12,14 @@ class ContactListController extends AbstractController
     {
         header('Content-Type: application/json; charset=utf-8');
 
-        $path = __DIR__ . "/../../var/contacts/";
-
-        $contactsDir = array_diff(scandir($path), array(".", "..", ".DS_Store"));
+        $storage = new ContactStorage();
 
         $json = [];
-        foreach ($contactsDir as $file) {
-            if (str_ends_with(strtolower($file), ".json")) {
-                try {
-                    $content = json_decode(file_get_contents("$path$file"), null, 512, JSON_THROW_ON_ERROR);
-                    $json[] = $content;
-                } catch (\JsonException $e) {
-                    error_log("Broken JSON file: \"$file\"");
-                }
+        foreach ($storage->listNames() as $name) {
+            try {
+                $json[] = $storage->read($name);
+            } catch (\JsonException $e) {
+                error_log("Broken JSON file: \"$name.json\"");
             }
         }
 
