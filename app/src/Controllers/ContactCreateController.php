@@ -12,13 +12,14 @@ class ContactCreateController extends AbstractController
 
     public function process(Request $request): Response
     {
+        header('Content-Type: application/json; charset=utf-8');
+
         if (JsonBody::hasContentType($request) === false) {
             $response = new Response();
             $response->sendResponse(400, json_encode(["error" => "No headers provided"]));
             return $response;
         }
 
-        header('Content-Type: application/json; charset=utf-8');
 
         if (JsonBody::isJson($request) === false) {
             $response = new Response();
@@ -47,6 +48,15 @@ class ContactCreateController extends AbstractController
                 return $response;
             }
 
+            if ($validator->isString($json["subject"]) === false) {
+                $response->sendResponse(400, json_encode(["error" => "\"subject\" is not a string"]));
+                return $response;
+            }
+            if ($validator->isString($json["message"]) === false) {
+                $response->sendResponse(400, json_encode(["error" => "\"message\" is not a string"]));
+                return $response;
+            }
+
             try {
                 $timestamp = time();
 
@@ -55,6 +65,9 @@ class ContactCreateController extends AbstractController
                 $data = array_merge($json, ["dateOfCreation" => $timestamp, 'dateOfLastUpdate' => $timestamp]);
 
                 $storage = new ContactStorage();
+
+
+
 
                 if ($storage->save($name, $data) === false) {
                     $response->sendResponse(500, json_encode(["error" => "could not write file"]));
@@ -75,9 +88,9 @@ class ContactCreateController extends AbstractController
             $invalid = $validator->unknownKeys($json);
             $response->statusCode = 400;
 
-            if ($missing != [] && $invalid != []) {
+            if ($missing !== [] && $invalid !== []) {
                 $response->content = json_encode(["error" => "invalid JSON schema: '" . implode(", ", $invalid) . "' is/are invalid and '" . implode(", ", $missing) . "' is/are missing."]);
-            } elseif ($missing != []) {
+            } elseif ($missing !== []) {
                 $response->content = json_encode(["error" => "invalid JSON schema: '" . implode(", ", $missing) . "' key is/are missing."]);
             } else {
                 $response->content = json_encode(["error" => "invalid JSON schema: '" . implode(", ", $invalid) . "' key is/are invalid."]);

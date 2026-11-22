@@ -31,6 +31,11 @@ class ContactStorage
         return file_put_contents($this->pathFor($name), $content, LOCK_EX) !== false;
     }
 
+    public function delete(string $name): bool
+    {
+        return unlink($this->pathFor($name));
+    }
+
     public function listNames(): array
     {
         $files = array_diff(scandir(self::DIRECTORY), [".", "..", ".DS_Store"]);
