@@ -18,5 +18,10 @@
     "uri": "/contact/<filename>",
     "method": "GET",
     "controller": "ContactSelectController"
+  },
+  {
+    "uri": "/contact/<filename>",
+    "method": "PATCH",
+    "controller": "ContactPatchController"
   }
 ]
