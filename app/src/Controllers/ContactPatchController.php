@@ -2,8 +2,8 @@
 
 namespace App\Controllers;
 
-use App\Services\ContactStorage;
-use Lib\Http\{Request, Response};
+use App\Services\{ContactStorage, ContactValidator};
+use Lib\Http\{JsonBody, Request, Response};
 use Lib\Controllers\AbstractController;
 
 class ContactPatchController extends AbstractController
@@ -30,16 +30,14 @@ class ContactPatchController extends AbstractController
             return $response;
         }
 
-        if (isset($request->getHeaders()["Content-Type"]) === false) {
+        if (JsonBody::hasContentType($request) === false) {
             $response = new Response();
             $response->sendResponse(400, json_encode(["error" => "No headers provided"]));
 
             return $response;
         }
 
-        $contentType = explode(";", $request->getHeaders()["Content-Type"]);
-
-        if (trim($contentType[0]) !== "application/json") {
+        if (JsonBody::isJson($request) === false) {
             $response = new Response();
             $response->sendResponse(400, json_encode(["error" => "Invalid Content-Type: only JSON content is allowed"]));
 
@@ -47,23 +45,21 @@ class ContactPatchController extends AbstractController
         }
 
         try {
-            $json = json_decode($request->getBody(), true, 512, JSON_THROW_ON_ERROR);
+            $json = JsonBody::decode($request);
         } catch (\JsonException $e) {
             $response = new Response();
             $response->sendResponse(400, json_encode(["error" => "Invalid JSON format: Check your request for typos"]));
 
             return $response;
-        }
-
-        if (is_array($json) === false) {
+        } catch (\UnexpectedValueException $e) {
             $response = new Response();
             $response->sendResponse(400, json_encode(["error" => "Invalid Content: Not an array"]));
 
             return $response;
         }
 
-        $allowedBodyKeys = ["email", "subject", "message"];
-        $invalid = array_diff(array_keys($json), $allowedBodyKeys);
+        $validator = new ContactValidator();
+        $invalid = $validator->unknownKeys($json);
 
         if ($invalid !== []) {
             $response = new Response();
@@ -79,7 +75,7 @@ class ContactPatchController extends AbstractController
             return $response;
         }
 
-        if (array_key_exists("email", $json) && filter_var($json["email"], FILTER_VALIDATE_EMAIL) === false) {
+        if (array_key_exists("email", $json) && $validator->isValidEmail($json["email"]) === false) {
             $response = new Response();
             $response->sendResponse(400, json_encode(["error" => "The email provided is invalid"]));
 
