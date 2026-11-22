@@ -9,5 +9,14 @@
     "method": "POST",
     "controller": "ContactCreateController"
   },
-  { "uri": "/contact", "method": "GET", "controller": "ContactListController" }
+  {
+    "uri": "/contact",
+    "method": "GET",
+    "controller": "ContactListController"
+  },
+  {
+    "uri": "/contact/<filename>",
+    "method": "GET",
+    "controller": "ContactSelectController"
+  }
 ]
