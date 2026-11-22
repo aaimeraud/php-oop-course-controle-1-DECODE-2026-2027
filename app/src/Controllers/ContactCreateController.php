@@ -3,7 +3,8 @@
 namespace App\Controllers;
 
 
-use Lib\Http\{Request, Response};
+use App\Services\{ContactStorage, ContactValidator};
+use Lib\Http\{JsonBody, Request, Response};
 use Lib\Controllers\AbstractController;
 
 class ContactCreateController extends AbstractController
@@ -11,7 +12,7 @@ class ContactCreateController extends AbstractController
 
     public function process(Request $request): Response
     {
-        if (isset($request->getHeaders()["Content-Type"]) === false) {
+        if (JsonBody::hasContentType($request) === false) {
             $response = new Response();
             $response->sendResponse(400, json_encode(["error" => "No headers provided"]));
             return $response;
@@ -19,33 +20,29 @@ class ContactCreateController extends AbstractController
 
         header('Content-Type: application/json; charset=utf-8');
 
-        $contentType = explode(";", $request->getHeaders()["Content-Type"]);
-
-        if (trim($contentType[0]) !== "application/json") {
+        if (JsonBody::isJson($request) === false) {
             $response = new Response();
             $response->sendResponse(400, json_encode(["error" => "Invalid Content-Type: only JSON content is allowed"]));
             return $response;
         }
 
         try {
-            $json = json_decode($request->getBody(), true, 512, JSON_THROW_ON_ERROR);
+            $json = JsonBody::decode($request);
         } catch (\JsonException $e) {
             $response = new Response();
             $response->sendResponse(400, json_encode(["error" => "Invalid JSON format: Check your request for typos"]));
             return $response;
-        }
-
-        if (is_array($json) === false) {
+        } catch (\UnexpectedValueException $e) {
             $response = new Response();
             $response->sendResponse(400, json_encode(["error" => "Invalid Content: Not an array"]));
             return $response;
         }
 
         $response = new Response();
-        $allowedBodyKeys = ["email", "subject", "message"];
+        $validator = new ContactValidator();
 
-        if (array_diff($allowedBodyKeys, array_keys($json)) == [] && array_diff(array_keys($json), $allowedBodyKeys) == []) {
-            if (filter_var($json["email"], FILTER_VALIDATE_EMAIL) === false) {
+        if ($validator->missingKeys($json) === [] && $validator->unknownKeys($json) === []) {
+            if ($validator->isValidEmail($json["email"]) === false) {
                 $response->sendResponse(400, json_encode(["error" => "The email provided is invalid"]));
                 return $response;
             }
@@ -53,23 +50,18 @@ class ContactCreateController extends AbstractController
             try {
                 $timestamp = time();
 
-                $filename = date("Y-m-d_H-i-s") . "_" . $json["email"] . ".json";
-                $path = __DIR__ . "/../../var/contacts/" . $filename;
+                $name = date("Y-m-d_H-i-s") . "_" . $json["email"];
 
                 $data = array_merge($json, ["dateOfCreation" => $timestamp, 'dateOfLastUpdate' => $timestamp]);
 
-                if (
-                    file_put_contents(
-                        $path,
-                        json_encode($data, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR),
-                        LOCK_EX
-                    ) === false
-                ) {
+                $storage = new ContactStorage();
+
+                if ($storage->save($name, $data) === false) {
                     $response->sendResponse(500, json_encode(["error" => "could not write file"]));
                     return $response;
                 }
 
-                $response->sendResponse(201, json_encode(["file" => $filename]));
+                $response->sendResponse(201, json_encode(["file" => $name . ".json"]));
                 return $response;
             } catch (\JsonException $e) {
                 $response->sendResponse(400, json_encode(["error" => "Invalid JSON"]));
@@ -79,8 +71,8 @@ class ContactCreateController extends AbstractController
                 return $response;
             }
         } else {
-            $missing = array_diff($allowedBodyKeys, array_keys($json));
-            $invalid = array_diff(array_keys($json), $allowedBodyKeys);
+            $missing = $validator->missingKeys($json);
+            $invalid = $validator->unknownKeys($json);
             $response->statusCode = 400;
 
             if ($missing != [] && $invalid != []) {
